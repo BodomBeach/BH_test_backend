@@ -1,0 +1,8 @@
+{
+  "name": "fake_device_ep2",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "mqtt": "^4.2.8"
+  }
+}

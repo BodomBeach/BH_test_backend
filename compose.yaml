@@ -1,0 +1,166 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    container_name: rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "1883:1883"
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./rabbitmq/rabbitmq_definitions.json:/etc/rabbitmq/rabbitmq_definitions.json
+    command: '/bin/bash -c "rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_mqtt rabbitmq_amqp1_0; rabbitmq-server"'
+    networks:
+      - bh_network
+
+  ep1:
+    build:
+      context: fake_devices
+      dockerfile: Dockerfile
+    container_name: ep1
+    working_dir: /app/ep1
+    command: ["node", "index.js"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bh_network
+
+  ep2:
+    build:
+      context: fake_devices
+      dockerfile: Dockerfile
+    working_dir: /app/ep2
+    container_name: ep2
+    command: ["node", "index.js"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bh_network
+
+  env1:
+    build:
+      context: fake_devices
+      dockerfile: Dockerfile
+    container_name: env1
+    working_dir: /app/env1
+    command: ["node", "index.js"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bh_network
+
+  raw_data_processor:
+    build:
+      context: ./backend/apps/raw_data_processor
+    container_name: raw_data_processor
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/apps/raw_data_processor:/app
+    command: "npm run start:dev"
+    networks:
+      - bh_network
+
+  ep_data_consolidator:
+    build:
+      context: ./backend/apps/ep_data_consolidator
+    container_name: ep_data_consolidator
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/apps/ep_data_consolidator:/app
+    command: "npm run start:dev"
+    networks:
+      - bh_network
+
+  env_data_consolidator:
+    build:
+      context: ./backend/apps/env_data_consolidator
+    container_name: env_data_consolidator
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/apps/env_data_consolidator:/app
+    command: "npm run start:dev"
+    networks:
+      - bh_network
+
+  scheduler:
+    build:
+      context: ./backend/apps/scheduler
+    container_name: scheduler
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./backend/apps/scheduler:/app
+    command: "npm run start:dev"
+    networks:
+      - bh_network
+
+  api:
+    build:
+      context: ./backend/apps/api
+    container_name: api
+    depends_on:
+      mysql:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./backend/apps/api:/app
+    command: "npm run start:dev"
+    networks:
+      - bh_network
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: bh
+      MYSQL_DATABASE: bh
+      MYSQL_USER: bh
+      MYSQL_PASSWORD: bh
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - bh_network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - 6379:6379
+    networks:
+      - bh_network
+
+volumes:
+  rabbitmq_data:
+  mysql_data:
+  redis_data:
+
+networks:
+  bh_network:
+    driver: bridge

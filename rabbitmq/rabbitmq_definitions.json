@@ -1,0 +1,80 @@
+{
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "users": [
+    {
+      "name": "guest",
+      "password": "guest",
+      "tags": "administrator"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "bh/devices",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true
+    },
+    {
+      "name": "bh.devices.data.consolidate",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true
+    }
+  ],
+  "queues": [
+    {
+      "name": "bh.devices.data.raw",
+      "vhost": "/",
+      "durable": false
+    },
+    {
+      "name": "bh.devices.data.consolidate.ep",
+      "vhost": "/",
+      "durable": false
+    },
+    {
+      "name": "bh.devices.data.consolidate.env",
+      "vhost": "/",
+      "durable": false
+    }
+  ],
+  "bindings": [
+    {
+      "source": "amq.topic",
+      "vhost": "/",
+      "destination": "bh.devices.data.raw",
+      "destination_type": "queue",
+      "routing_key": "bh.devices",
+      "arguments": {}
+    },
+    {
+      "source": "bh.devices.data.consolidate",
+      "vhost": "/",
+      "destination": "bh.devices.data.consolidate.ep",
+      "destination_type": "queue",
+      "routing_key": "ep",
+      "arguments": {}
+    },
+    {
+      "source": "bh.devices.data.consolidate",
+      "vhost": "/",
+      "destination": "bh.devices.data.consolidate.env",
+      "destination_type": "queue",
+      "routing_key": "env",
+      "arguments": {}
+    }
+  ]
+}
